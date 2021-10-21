@@ -30,8 +30,8 @@ class UnetDataset(Dataset):
         self.case_info = self.case_info[87:]
         
     def __len__(self):
-        # return len(self.case_info)
-        return 30
+        return len(self.case_info)
+        # return 30
         
     def __getitem__(self, idx):
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -68,10 +68,14 @@ class UnetDataset(Dataset):
         img = img[centroid_x-half_patch_size:centroid_x+half_patch_size, centroid_y-half_patch_size:centroid_y+half_patch_size, centroid_z-half_patch_size:centroid_z+half_patch_size]
         mask = mask[centroid_x-half_patch_size:centroid_x+half_patch_size, centroid_y-half_patch_size:centroid_y+half_patch_size, centroid_z-half_patch_size:centroid_z+half_patch_size]
 
+        img[img<70-750]=70-750
+        img[img>70+750]=70+750
+        img = img - torch.min(img)
+        img = img/(torch.max(img)-torch.min(img))
 
         sample = {  'name' : case_name,
                     'img'  : img.unsqueeze(0),
-                    'mask' : torch.stack((mask.long(),1-mask.long()),0)}#.unsqueeze(0)
+                    'mask' : mask.unsqueeze(0)}
         
         return sample
 
@@ -136,6 +140,11 @@ class FnetDataset(Dataset):
                     centroid_y-half_patch_size:centroid_y+half_patch_size, \
                     centroid_z-half_patch_size:centroid_z+half_patch_size]
         
+        img[img<70-750]=70-750
+        img[img>70+750]=70+750
+        img = img - torch.min(img)
+        img = img/(torch.max(img)-torch.min(img))
+        
         for i in range(4):
             image_list.append(img[centroid_x-int(half_patch_size/2**i):centroid_x+int(half_patch_size/2**i), \
                                   centroid_y-int(half_patch_size/2**i):centroid_y+int(half_patch_size/2**i), \
@@ -149,6 +158,7 @@ class FnetDataset(Dataset):
                     'img1' : image_list[1].unsqueeze(0),
                     'img2' : image_list[2].unsqueeze(0),
                     'img3' : image_list[3].unsqueeze(0),
-                    'mask' : torch.stack((mask.long(),1-mask.long()),0)}
+                    'mask' : mask.long().unsqueeze(0)}
+#                     'mask' : torch.stack((mask.long(),1-mask.long()),0)}
         
         return sample

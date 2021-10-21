@@ -26,16 +26,16 @@ if __name__ == "__main__":
     resume = True
     save_model = True
     print(f'resume:{resume}, save_model:{save_model}')
-    output_dir = 'Models/Unet1024'
+    output_dir = 'Models/FNet'
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
     epoch_loss_list = []
-    epoch_num = 301
-    start_epoch_num = 14
-    batch_size = 8
-    learning_rate = 5e0
+    epoch_num = 1001
+    start_epoch_num = 9
+    batch_size = 4
+    learning_rate = 1e-2
 
-    model = UNet1024()
+    model = FNet()
     model.train()
     if mode=='gpu':
         model.cuda()
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate)
     # optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    dataset = UnetDataset(root_dir='/home/sci/hdai/Projects/Dataset/LymphNodes', patch_size=128)
+    dataset = FnetDataset(root_dir='/home/sci/hdai/Projects/Dataset/LymphNodes', patch_size=128)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     if resume:
@@ -71,11 +71,17 @@ if __name__ == "__main__":
         for i, batched_sample in tqdm(enumerate(dataloader)):
             '''innerdomain backpropagate'''
     #         print(i)
-            input_data = batched_sample['img'].double()#.to(device)
+            input0 = batched_sample['img0'].double()
+            input1 = batched_sample['img1'].double()
+            input2 = batched_sample['img2'].double()
+            input3 = batched_sample['img3'].double()
     #         print(input.shape)
-            input_data.requires_grad = True
+            input0.requires_grad = True
+            input1.requires_grad = True
+            input2.requires_grad = True
+            input3.requires_grad = True
             # u_pred: [batch_size, *data_shape, feature_num] = [1, 5, ...]
-            output_pred = net(input_data)
+            output_pred = net(input0,input1,input2,input3)
             # output_pred = model(input)
             output_true = batched_sample['mask']
 
@@ -88,7 +94,7 @@ if __name__ == "__main__":
         with open(f'{output_dir}/loss.txt', 'a') as f:
             f.write(f'{epoch_loss}\n')
 
-        print(f'epoch {epoch} innerdomain loss: {epoch_loss}')#, norm: {torch.norm(f_pred,2)**2}
+        print(f'epoch {epoch} loss: {epoch_loss}')#, norm: {torch.norm(f_pred,2)**2}
         epoch_loss_list.append(epoch_loss)
         if epoch%1==0:       
             if save_model:
@@ -102,6 +108,6 @@ if __name__ == "__main__":
     plt.figure(figsize=(7,5))
     plt.title('Innerdomain loss')
     plt.xlabel('epoch')
-    plt.ylabel('CE loss')
+    plt.ylabel('BCE loss')
     plt.plot(epoch_loss_list)
-    plt.savefig(f'{output_dir}/adadelta_loss_1e0.png')
+    plt.savefig(f'{output_dir}/adadelta_loss_{learning_rate}.png')

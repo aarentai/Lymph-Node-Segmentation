@@ -84,7 +84,8 @@ class FNet(nn.Module):
         self.upsp_layer_2 = _UpSampleLayer(in_features=32+32, out_features=24)
         self.upsp_layer_1 = _UpSampleLayer(in_features=24+24, out_features=16)
 #         self.upsp_layer_0 = _UpSampleLayer(in_features=16+16, out_features=2)
-        self.conv = nn.Conv3d(in_channels=16+16, out_channels=2, kernel_size=3, stride=1, bias=False, padding=1)
+# the pred and true in torch.nn.BCEWithLogitsLoss are all one channel
+        self.conv = nn.Conv3d(in_channels=16+16, out_channels=1, kernel_size=3, stride=1, bias=False, padding=1)
         print('# params {}, # conv layers {}'.format(*self.model_size))
         
     @property
@@ -101,8 +102,8 @@ class FNet(nn.Module):
         ul1 = self.upsp_layer_1(torch.cat([ul2, cl1], dim=1))
         ul0 = self.conv(torch.cat([ul1, cl0], dim=1))
         
-        output = F.softmax(ul0, dim=1)
-        return output
+#         output = F.softmax(ul0, dim=1)
+        return ul0 # because torch.nn.BCEWithLogitsLoss already incorporates sigmoid function and output should be one channel
 
 
 class UNet64(nn.Module):
@@ -121,7 +122,7 @@ class UNet64(nn.Module):
         self.conv64_32 = nn.Conv3d(64, 32, 3, padding=1)
         self.conv32_16 = nn.Conv3d(32, 16, 3, padding=1)
         self.conv16_8 = nn.Conv3d(16, 8, 3, padding=1)
-        self.conv8_2 = nn.Conv3d(8, 2, 3, padding=1)
+        self.conv8_1 = nn.Conv3d(8, 1, 3, padding=1)
         # https://zhuanlan.zhihu.com/p/32506912
         self.up_conv64_32 = nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1)
         self.up_conv32_16 = nn.ConvTranspose3d(in_channels=32, out_channels=16, kernel_size=4, stride=2, padding=1)
@@ -188,8 +189,8 @@ class UNet64(nn.Module):
         dec1 = F.instance_norm(dec1)
         nn.LeakyReLU()
 
-        output = self.conv8_2(dec1)
-        output = F.softmax(output, dim=1)
+        output = self.conv8_1(dec1)
+        # output = F.softmax(output, dim=1)
 
         return output
 
@@ -219,7 +220,7 @@ class UNet256(nn.Module):
         self.conv64_32 = nn.Conv3d(64, 32, 3, padding=1)
         self.conv32_16 = nn.Conv3d(32, 16, 3, padding=1)
         self.conv16_8 = nn.Conv3d(16, 8, 3, padding=1)
-        self.conv8_2 = nn.Conv3d(8, 2, 3, padding=1)
+        self.conv8_1 = nn.Conv3d(8, 1, 3, padding=1)
         # https://zhuanlan.zhihu.com/p/32506912
         self.up_conv256_128 = nn.ConvTranspose3d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1)
         self.up_conv128_64 = nn.ConvTranspose3d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1)
@@ -322,8 +323,8 @@ class UNet256(nn.Module):
         dec1 = F.instance_norm(dec1)
         nn.LeakyReLU()
 
-        output = self.conv8_2(dec1)
-        output = F.softmax(output, dim=1)
+        output = self.conv8_1(dec1)
+        # output = F.softmax(output, dim=1)
 
         return output
 
@@ -357,7 +358,7 @@ class UNet1024(nn.Module):
         self.conv64_32 = nn.Conv3d(64, 32, 3, padding=1)
         self.conv32_16 = nn.Conv3d(32, 16, 3, padding=1)
         self.conv16_8 = nn.Conv3d(16, 8, 3, padding=1)
-        self.conv8_2 = nn.Conv3d(8, 2, 3, padding=1)
+        self.conv8_1 = nn.Conv3d(8, 1, 3, padding=1)
         # https://zhuanlan.zhihu.com/p/32506912
         self.up_conv1024_512 = nn.ConvTranspose3d(in_channels=1024, out_channels=512, kernel_size=4, stride=2, padding=1)
         self.up_conv512_256 = nn.ConvTranspose3d(in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1)
@@ -496,8 +497,8 @@ class UNet1024(nn.Module):
         dec1 = F.instance_norm(dec1)
         nn.LeakyReLU()
 
-        output = self.conv8_2(dec1)
-        output = F.softmax(output, dim=1)
+        output = self.conv8_1(dec1)
+        # output = F.softmax(output, dim=1)
 
         return output
 
