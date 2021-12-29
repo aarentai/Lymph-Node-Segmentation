@@ -10,6 +10,92 @@ import nibabel as nib
 import pydicom as pd
 
 
+def intensity_mean(original):
+    original = original.flatten()
+    new_ori = np.delete(original, np.where(original == 0))
+    return np.mean(new_ori)
+
+
+def intensity_std(original):
+    original = original.flatten()
+    new_ori = np.delete(original, np.where(original == 0))
+    return np.std(new_ori)
+
+
+def intensity_norm(original, mean, std):
+    normalized = (original - mean)/std
+    normalized[normalized > 5] = 5
+    # normalized[normalized < -5] = -5
+    # normalized = (normalized + 5)/(2*5)
+    normalized = (normalized - normalized.min()) / (normalized.max() - normalized.min())
+    return normalized
+
+
+class BratsDataset(Dataset):
+    def __init__(self, root_dir, img_folder, label_folder, transform=None):
+        self.root_dir = root_dir
+        self.img_dir = os.path.join(root_dir, img_folder)
+        self.label_dir = os.path.join(root_dir, label_folder)
+        self.folder_name = [f for f in os.listdir(self.img_dir)]
+        self.folder_name.sort()
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.folder_name)
+
+    def __getitem__(self, index):
+        folder = self.folder_name[index]
+        t1_path = self.img_dir + folder + '/' + folder + '_t1.nii.gz'
+        # occ_path = self.img_dir + folder + '/'  + folder + '_occ.nii.gz'
+        t1ce_path = self.img_dir + folder + '/' + folder + '_t1ce.nii.gz'
+        t2_path = self.img_dir + folder + '/' + folder + '_t2.nii.gz'
+        flair_path = self.img_dir + folder + '/' + folder + '_flair.nii.gz'
+        label_path = self.label_dir + folder + '_seg.nii.gz'
+
+        # load 4-channel input
+        t1 = nib.load(t1_path).get_data()
+        # occ = nib.load(occ_path).get_data()
+        t1ce = nib.load(t1ce_path).get_data()
+        t2 = nib.load(t2_path).get_data()
+        flair = nib.load(flair_path).get_data()
+
+        # calculate mean and std
+        mean = [intensity_mean(t1), intensity_mean(t1ce), intensity_mean(t2), intensity_mean(flair)]
+        # mean = [intensity_mean(occ), intensity_mean(t1ce), intensity_mean(t2), intensity_mean(flair)]
+        std = [intensity_std(t1), intensity_std(t1ce), intensity_std(t2), intensity_std(flair)]
+        # std = [intensity_std(occ), intensity_std(t1ce), intensity_std(t2), intensity_std(flair)]
+
+        # normalization
+        t1 = intensity_norm(t1, mean[0], std[0])
+        # occ = intensity_norm(occ, mean[0], std[0])
+        t1ce = intensity_norm(t1ce, mean[1], std[1])
+        t2 = intensity_norm(t2, mean[2], std[2])
+        flair = intensity_norm(flair, mean[3], std[3])
+
+        # crop
+        t1 = t1[56:56 + 128, 56:56 + 128, 14:14 + 128]
+        # occ = occ[56:56 + 128, 56:56 + 128, 14:14 + 128]
+        t1ce = t1ce[56:56 + 128, 56:56 + 128, 14:14 + 128]
+        t2 = t2[56:56 + 128, 56:56 + 128, 14:14 + 128]
+        flair = flair[56:56 + 128, 56:56 + 128, 14:14 + 128]
+
+        image = np.stack([t1, t1ce, t2, flair])
+        # image = np.stack([occ, t1ce, t2, flair])
+
+        label = nib.load(label_path).get_data()
+        label = label[56:56 + 128, 56:56 + 128, 14:14 + 128]
+        label[label > 3] = 3
+
+        sample = {'name': folder,
+                  'image': torch.from_numpy(image).type('torch.DoubleTensor'),
+                  'label': torch.from_numpy(label).type('torch.DoubleTensor')}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+    
+
 class UnetDataset(Dataset):
     def __init__(self, root_dir, patch_size=128):# /home/sci/hdai/Projects/LymphNodes
 #         construct case_info dict
@@ -27,7 +113,7 @@ class UnetDataset(Dataset):
             for row in reader:
                 self.case_info.append({self.field_list[i]:row[i] for i in range(len(row))})
 #         self.case_info.pop(0)
-        self.case_info = self.case_info[87:]
+        self.case_info = self.case_info[87:-18]
         
     def __len__(self):
         return len(self.case_info)
@@ -97,7 +183,7 @@ class FnetDataset(Dataset):
             for row in reader:
                 self.case_info.append({self.field_list[i]:row[i] for i in range(len(row))})
 #                 only use mediastinal lymph node
-        self.case_info = self.case_info[87:]
+        self.case_info = self.case_info[87:-18]
         
     def __len__(self):
         return len(self.case_info)

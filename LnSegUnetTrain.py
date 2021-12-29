@@ -15,7 +15,7 @@ import SimpleITK as sitk
 if __name__ == "__main__":
     mode='gpu'
     if mode=='gpu':
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
         # after switch device, you need restart the kernel
         # torch.cuda.set_device(1)
         torch.set_default_tensor_type('torch.cuda.DoubleTensor')
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     resume = True
     save_model = True
     print(f'resume:{resume}, save_model:{save_model}')
-    output_dir = 'Models/UNet1024'
+    output_dir = '/home/sci/hdai/Projects/LnSeg/Models/UNet1024'
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
     epoch_loss_list = []
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     model.train()
     if mode=='gpu':
         model.cuda()
-    net = torch.nn.DataParallel(model, device_ids=[0, 1])
+    net = torch.nn.DataParallel(model, device_ids=[1, 2, 3, 4, 6, 7])
     # criterion = DiceLoss()
     criterion = torch.nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate)
